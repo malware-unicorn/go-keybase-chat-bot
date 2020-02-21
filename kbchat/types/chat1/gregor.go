@@ -1,11 +1,11 @@
-// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/keybase/node-avdl-compiler)
+// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/malware-unicorn/node-avdl-compiler)
 //   Input file: ../client/protocol/avdl/chat1/gregor.avdl
 
 package chat1
 
 import (
-	gregor1 "github.com/keybase/go-keybase-chat-bot/kbchat/types/gregor1"
-	keybase1 "github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
+	gregor1 "github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/gregor1"
+	keybase1 "github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/keybase1"
 )
 
 type GenericPayload struct {

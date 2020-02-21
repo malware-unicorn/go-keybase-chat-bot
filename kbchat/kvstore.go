@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/keybase1"
 )
 
 type kvstoreMethod string

@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/keybase1"
 	"github.com/stretchr/testify/require"
 )
 

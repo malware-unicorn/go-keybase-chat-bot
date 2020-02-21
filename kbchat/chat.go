@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/keybase1"
 )
 
 type Thread struct {

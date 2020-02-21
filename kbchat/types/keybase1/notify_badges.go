@@ -1,10 +1,10 @@
-// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/keybase/node-avdl-compiler)
+// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/malware-unicorn/node-avdl-compiler)
 //   Input file: ../client/protocol/avdl/keybase1/notify_badges.avdl
 
 package keybase1
 
 import (
-	gregor1 "github.com/keybase/go-keybase-chat-bot/kbchat/types/gregor1"
+	gregor1 "github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/gregor1"
 )
 
 type ChatConversationID []byte

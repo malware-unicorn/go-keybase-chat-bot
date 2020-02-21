@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/chat1"
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/stellar1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/chat1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/stellar1"
 )
 
 // API is the main object used for communicating with the Keybase JSON API

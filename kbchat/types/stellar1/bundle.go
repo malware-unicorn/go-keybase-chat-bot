@@ -1,4 +1,4 @@
-// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/keybase/node-avdl-compiler)
+// Auto-generated to Go types using avdl-compiler v1.4.6 (https://github.com/malware-unicorn/node-avdl-compiler)
 //   Input file: ../client/protocol/avdl/stellar1/bundle.avdl
 
 package stellar1
@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	keybase1 "github.com/keybase/go-keybase-chat-bot/kbchat/types/keybase1"
+	keybase1 "github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/keybase1"
 )
 
 type BundleRevision uint64

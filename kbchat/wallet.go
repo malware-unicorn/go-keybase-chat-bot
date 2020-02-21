@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat/types/stellar1"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/stellar1"
 )
 
 type WalletOutput struct {
