@@ -62,7 +62,7 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 		}
 	case <-time.After(5 * time.Second):
 		<-doneCh
-	        return "", fmt.Errorf("invalid Keybase username output: %s", output)
+	        return "", fmt.Errorf("invalid Keybase  output: %s", output)
 		//return "", errors.New("unable to run Keybase command")
 	}
 
@@ -434,7 +434,7 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 			}
 			attempts++
 			if _, err := a.auth(); err != nil {
-				log.Printf("Listen: failed to auth: %s", err)
+				log.Printf("Listen: failed to auth new: %s", err)
 				time.Sleep(pause)
 				continue
 			}
