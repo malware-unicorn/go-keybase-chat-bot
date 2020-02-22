@@ -62,7 +62,8 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 		}
 	case <-time.After(5 * time.Second):
 		<-doneCh
-		return "", errors.New("unable to run Keybase command")
+	        return "", fmt.Errorf("invalid Keybase username output: %s", output)
+		//return "", errors.New("unable to run Keybase command")
 	}
 
 	return username, nil
