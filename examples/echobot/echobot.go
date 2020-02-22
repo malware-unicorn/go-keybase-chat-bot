@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/keybase/go-keybase-chat-bot/kbchat"
+	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat"
 )
 
 func fail(msg string, args ...interface{}) {
