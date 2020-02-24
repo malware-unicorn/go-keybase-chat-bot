@@ -30,6 +30,7 @@ type API struct {
 }
 
 func getUsername(runOpts RunOptions) (username string, err error) {
+	fmt.Printf("Getting Username")
 	p := runOpts.Command("status")
 	pipeR, pipeW, _ := os.Pipe()
 	p.Stdout = pipeW
@@ -48,6 +49,7 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 
 	doneCh := make(chan error)
 	go func() {
+		fmt.Printf("Getting Username inner ...")
 		scanner := bufio.NewScanner(pipeR)
 		if !scanner.Scan() {
 			doneCh <- errors.New("unable to find Keybase username")
@@ -73,6 +75,8 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 	        //return "", fmt.Errorf("invalid Keybase  output: %s", output)
 		return "", errors.New("unable to run Keybase command")
 	}
+	pipeR.Close()
+	pipeW.Close()
 
 	return username, nil
 }
