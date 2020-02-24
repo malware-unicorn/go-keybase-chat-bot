@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,17 +31,24 @@ type API struct {
 
 func getUsername(runOpts RunOptions) (username string, err error) {
 	p := runOpts.Command("status")
-	output, err := p.StdoutPipe()
-	if err != nil {
-		return "", err
+	pipeR, pipeW, _ := os.Pipe()
+	p.Stdout = pipeW
+        p.Stderr = pipeW
+	p.ExtraFiles = []*os.File{
+		pipeW,
 	}
-	if err = p.Start(); err != nil {
+	//output, err := p.StdoutPipe()
+	//if err != nil {
+	//	return "", err
+	//}
+	//if err = p.Start(); err != nil {
+	if err = p.Run(); err != nil {
 		return "", err
 	}
 
 	doneCh := make(chan error)
 	go func() {
-		scanner := bufio.NewScanner(output)
+		scanner := bufio.NewScanner(pipeR)
 		if !scanner.Scan() {
 			doneCh <- errors.New("unable to find Keybase username")
 			return
@@ -62,8 +70,8 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 		}
 	case <-time.After(5 * time.Second):
 		<-doneCh
-	        return "", fmt.Errorf("invalid Keybase  output: %s", output)
-		//return "", errors.New("unable to run Keybase command")
+	        //return "", fmt.Errorf("invalid Keybase  output: %s", output)
+		return "", errors.New("unable to run Keybase command")
 	}
 
 	return username, nil
