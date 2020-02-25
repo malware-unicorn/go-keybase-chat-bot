@@ -190,7 +190,7 @@ func (a *API) startPipes() (err error) {
 	if a.apiInput, err = a.apiCmd.StdinPipe(); err != nil {
 		return err
 	}
-        pipeR, pipeW, pipeE := os.Pipe()
+        pipeR, pipeW, _ := os.Pipe()
 	a.pipeW = pipeW
         a.pipeR = pipeR
 
