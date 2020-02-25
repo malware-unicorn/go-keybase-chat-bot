@@ -27,6 +27,8 @@ type API struct {
 	username      string
 	runOpts       RunOptions
 	subscriptions []*NewSubscription
+        pipeW         *os.File
+        pipeR         *os.File
 }
 
 func getUsername(runOpts RunOptions) (username string, err error) {
@@ -73,7 +75,6 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 		}
 	case <-time.After(5 * time.Second):
 		<-doneCh
-	        //return "", fmt.Errorf("invalid Keybase  output: %s", output)
 		return "", errors.New("unable to run Keybase command")
 	}
 	pipeR.Close()
@@ -120,6 +121,8 @@ func Start(runOpts RunOptions) (*API, error) {
 		runOpts: runOpts,
 	}
 	if err := api.startPipes(); err != nil {
+                api.pipeW.Close()
+                api.pipeR.Close()
 		return nil, err
 	}
 	return api, nil
@@ -187,14 +190,23 @@ func (a *API) startPipes() (err error) {
 	if a.apiInput, err = a.apiCmd.StdinPipe(); err != nil {
 		return err
 	}
-	output, err := a.apiCmd.StdoutPipe()
-	if err != nil {
-		return err
+        pipeR, pipeW, pipeE := os.Pipe()
+	a.pipeW = pipeW
+        a.pipeR = pipeR
+
+	a.apiCmd.Stdout = a.pipeW
+        a.apiCmd.Stderr = a.pipeW
+	a.apiCmd.ExtraFiles = []*os.File{
+		pipeW,
 	}
+	//output, err := a.apiCmd.StdoutPipe()
+	//if err != nil {
+	//	return err
+	//}
 	if err := a.apiCmd.Start(); err != nil {
 		return err
 	}
-	a.apiOutput = bufio.NewReader(output)
+	a.apiOutput = bufio.NewReader(a.pipeR)
 	return nil
 }
 
@@ -459,19 +471,25 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 				cmdElements = append(cmdElements, "--convs")
 			}
 			p := a.runOpts.Command(cmdElements...)
-			output, err := p.StdoutPipe()
-			if err != nil {
-				log.Printf("Listen: failed to listen: %s", err)
-				time.Sleep(pause)
-				continue
-			}
-			stderr, err := p.StderrPipe()
-			if err != nil {
-				log.Printf("Listen: failed to listen to stderr: %s", err)
-				time.Sleep(pause)
-				continue
-			}
-			boutput := bufio.NewScanner(output)
+                        pipeR, pipeW, _ := os.Pipe()
+                        pipeRerr, pipeWerr, _ := os.Pipe()
+	                p.Stdout = pipeW
+                        p.Stderr = pipeWerr
+	                p.ExtraFiles = []*os.File{pipeW, pipeWerr}
+
+			//output, err := p.StdoutPipe()
+			//if err != nil {
+			//	log.Printf("Listen: failed to listen: %s", err)
+			//	time.Sleep(pause)
+			//	continue
+			//}
+			//stderr, err := p.StderrPipe()
+			//if err != nil {
+			//	log.Printf("Listen: failed to listen to stderr: %s", err)
+			//	time.Sleep(pause)
+			//	continue
+			//}
+			boutput := bufio.NewScanner(pipeR)
 			if err := p.Start(); err != nil {
 				log.Printf("Listen: failed to make listen scanner: %s", err)
 				time.Sleep(pause)
@@ -481,7 +499,7 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 			go readScanner(boutput)
 			<-done
 			if err := p.Wait(); err != nil {
-				stderrBytes, rerr := ioutil.ReadAll(stderr)
+				stderrBytes, rerr := ioutil.ReadAll(pipeRerr)
 				if rerr != nil {
 					stderrBytes = []byte("failed to get stderr")
 				}
@@ -517,6 +535,8 @@ func (a *API) LogSend(feedback string) error {
 func (a *API) Shutdown() error {
 	a.Lock()
 	defer a.Unlock()
+        a.pipeW.Close()
+        a.pipeR.Close()
 	for _, sub := range a.subscriptions {
 		sub.Shutdown()
 	}
