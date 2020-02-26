@@ -44,8 +44,7 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 	//if err != nil {
 	//	return "", err
 	//}
-	//if err = p.Start(); err != nil {
-	if err = p.Run(); err != nil {
+	if err = p.Start(); err != nil {
 		return "", err
 	}
 
