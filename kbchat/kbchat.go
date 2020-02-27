@@ -64,7 +64,7 @@ func getUsername(runOpts RunOptions) (username string, err error) {
 		}
 		username = toks[1]
 		fmt.Printf("username: %s\n", username)
-		doneCh <- nil
+		doneCh <- p.Wait()
 	}()
 
 	select {
