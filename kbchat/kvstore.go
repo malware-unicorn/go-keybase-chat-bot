@@ -81,10 +81,7 @@ func (a *API) PutEntryWithRevision(teamName *string, namespace string, entryKey 
 	if err != nil {
 		return result, err
 	}
-
-	cmd := a.runOpts.Command("kvstore", "api")
-	cmd.Stdin = strings.NewReader(string(apiInput))
-	bytes, err := cmd.Output()
+	bytes, err := a.kb.SendKvstoreApi(string(apiInput))
 	if err != nil {
 		return result, APIError{err}
 	}
@@ -120,9 +117,7 @@ func (a *API) DeleteEntryWithRevision(teamName *string, namespace string, entryK
 		return result, err
 	}
 
-	cmd := a.runOpts.Command("kvstore", "api")
-	cmd.Stdin = strings.NewReader(string(apiInput))
-	bytes, err := cmd.Output()
+	bytes, err := a.kb.SendKvstoreApi(string(apiInput))
 	if err != nil {
 		return result, APIError{err}
 	}
@@ -150,9 +145,8 @@ func (a *API) GetEntry(teamName *string, namespace string, entryKey string) (res
 	if err != nil {
 		return result, err
 	}
-	cmd := a.runOpts.Command("kvstore", "api")
-	cmd.Stdin = strings.NewReader(string(apiInput))
-	bytes, err := cmd.Output()
+
+	bytes, err := a.kb.SendKvstoreApi(string(apiInput))
 	if err != nil {
 		return result, APIError{err}
 	}
@@ -179,9 +173,7 @@ func (a *API) ListNamespaces(teamName *string) (result keybase1.KVListNamespaceR
 		return result, err
 	}
 
-	cmd := a.runOpts.Command("kvstore", "api")
-	cmd.Stdin = strings.NewReader(string(apiInput))
-	bytes, err := cmd.Output()
+	bytes, err := a.kb.SendKvstoreApi(string(apiInput))
 	if err != nil {
 		return result, APIError{err}
 	}
@@ -209,9 +201,7 @@ func (a *API) ListEntryKeys(teamName *string, namespace string) (result keybase1
 		return result, err
 	}
 
-	cmd := a.runOpts.Command("kvstore", "api")
-	cmd.Stdin = strings.NewReader(string(apiInput))
-	bytes, err := cmd.Output()
+	bytes, err := a.kb.SendKvstoreApi(string(apiInput))
 	if err != nil {
 		return result, APIError{err}
 	}

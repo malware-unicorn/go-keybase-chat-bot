@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+  "github.com/malware-unicorn/keybase-bot-api/kbapi"
 	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/chat1"
 	"github.com/malware-unicorn/go-keybase-chat-bot/kbchat/types/stellar1"
 )
@@ -22,64 +22,14 @@ import (
 type API struct {
 	sync.Mutex
 	apiInput      io.Writer
-	apiOutput     *bufio.Reader
+	apiOutput     io.Reader
+	kb            *Kbapi
 	apiCmd        *exec.Cmd
 	username      string
 	runOpts       RunOptions
 	subscriptions []*NewSubscription
         pipeW         *os.File
         pipeR         *os.File
-}
-
-func getUsername(runOpts RunOptions) (username string, err error) {
-	fmt.Printf("Getting Username\n")
-	p := runOpts.Command("status")
-	pipeR, pipeW, _ := os.Pipe()
-	p.Stdout = pipeW
-        p.Stderr = pipeW
-	p.ExtraFiles = []*os.File{
-		pipeW,
-	}
-	//output, err := p.StdoutPipe()
-	//if err != nil {
-	//	return "", err
-	//}
-	if err = p.Start(); err != nil {
-		return "", err
-	}
-
-	doneCh := make(chan error)
-	go func() {
-		fmt.Printf("Getting Username inner ...\n")
-		scanner := bufio.NewScanner(pipeR)
-		if !scanner.Scan() {
-			doneCh <- errors.New("unable to find Keybase username")
-			return
-		}
-		text := scanner.Text()
-		toks := strings.Fields(text)
-		if len(toks) != 2 {
-			doneCh <- fmt.Errorf("invalid Keybase username output: %q", text)
-			return
-		}
-		username = toks[1]
-		fmt.Printf("username: %s\n", username)
-		doneCh <- p.Wait()
-	}()
-
-	select {
-	case err = <-doneCh:
-		if err != nil {
-			return "", err
-		}
-	case <-time.After(5 * time.Second):
-		<-doneCh
-		return "", errors.New("unable to run Keybase command")
-	}
-	pipeR.Close()
-	pipeW.Close()
-
-	return username, nil
 }
 
 type OneshotOptions struct {
@@ -118,6 +68,7 @@ func (r RunOptions) Command(args ...string) *exec.Cmd {
 func Start(runOpts RunOptions) (*API, error) {
 	api := &API{
 		runOpts: runOpts,
+		kb: NewKbApi(),
 	}
 	if err := api.startPipes(); err != nil {
                 api.pipeW.Close()
@@ -132,8 +83,8 @@ func (a *API) Command(args ...string) *exec.Cmd {
 }
 
 func (a *API) auth() (string, error) {
-	username, err := getUsername(a.runOpts)
-	if err == nil {
+	username := a.kb.GetUsername()
+	if username != nil {
 		return username, nil
 	}
 	if a.runOpts.Oneshot == nil {
@@ -146,11 +97,10 @@ func (a *API) auth() (string, error) {
 			// just get out if we are on the desired user already
 			return username, nil
 		}
-		if err := a.runOpts.Command("logout", "-f").Run(); err != nil {
+		if err:= kbapi.Logout(a.kb.GetGlobalContext(), true); err != nil {
 			return "", err
 		}
-		if err := a.runOpts.Command("oneshot", "--username", a.runOpts.Oneshot.Username, "--paperkey",
-			a.runOpts.Oneshot.PaperKey).Run(); err != nil {
+		if err:= LoginOneshot(a.kb.GetGlobalContext(), a.runOpts.Oneshot.Username, a.runOpts.Oneshot.PaperKey); err != nil {
 			return "", err
 		}
 		username = a.runOpts.Oneshot.Username
@@ -162,11 +112,6 @@ func (a *API) auth() (string, error) {
 func (a *API) startPipes() (err error) {
 	a.Lock()
 	defer a.Unlock()
-	if a.apiCmd != nil {
-		if err := a.apiCmd.Process.Kill(); err != nil {
-			return err
-		}
-	}
 	a.apiCmd = nil
 
 	if a.runOpts.StartService {
@@ -179,33 +124,15 @@ func (a *API) startPipes() (err error) {
 	if a.username, err = a.auth(); err != nil {
 		return err
 	}
-
-	cmd := a.runOpts.Command("chat", "notification-settings", fmt.Sprintf("-disable-typing=%v", !a.runOpts.EnableTyping))
-	if err = cmd.Run(); err != nil {
+	// Disable Typing
+  if err := kbapi.SetChatSettings(a.kb.GetGlobalContext()); err != nil {
 		return err
 	}
 
-	a.apiCmd = a.runOpts.Command("chat", "api")
-	if a.apiInput, err = a.apiCmd.StdinPipe(); err != nil {
-		return err
-	}
-        pipeR, pipeW, _ := os.Pipe()
+	pipeR, pipeW, _ := os.Pipe()
 	a.pipeW = pipeW
-        a.pipeR = pipeR
+	a.pipeR = pipeR
 
-	a.apiCmd.Stdout = a.pipeW
-        a.apiCmd.Stderr = a.pipeW
-	a.apiCmd.ExtraFiles = []*os.File{
-		pipeW,
-	}
-	//output, err := a.apiCmd.StdoutPipe()
-	//if err != nil {
-	//	return err
-	//}
-	if err := a.apiCmd.Start(); err != nil {
-		return err
-	}
-	a.apiOutput = bufio.NewReader(a.pipeR)
 	return nil
 }
 
@@ -231,14 +158,7 @@ func (a *API) doSend(arg interface{}) (resp SendResponse, err error) {
 	if err != nil {
 		return SendResponse{}, err
 	}
-	input, output, err := a.getAPIPipesLocked()
-	if err != nil {
-		return SendResponse{}, err
-	}
-	if _, err := io.WriteString(input, string(bArg)); err != nil {
-		return SendResponse{}, err
-	}
-	responseRaw, err := output.ReadBytes('\n')
+	responseRaw, err := a.kb.SendChatApi(string(bArg))
 	if err != nil {
 		return SendResponse{}, err
 	}
@@ -254,18 +174,10 @@ func (a *API) doFetch(apiInput string) ([]byte, error) {
 	a.Lock()
 	defer a.Unlock()
 
-	input, output, err := a.getAPIPipesLocked()
+	byteOutput, err := a.kb.SendChatApi(apiInput)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.WriteString(input, apiInput); err != nil {
-		return nil, err
-	}
-	byteOutput, err := output.ReadBytes('\n')
-	if err != nil {
-		return nil, err
-	}
-
 	return byteOutput, nil
 }
 
@@ -385,19 +297,18 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 	}
 	a.registerSubscription(sub)
 	pause := 2 * time.Second
-	readScanner := func(boutput *bufio.Scanner) {
+	readScanner := func() {
 		for {
-			boutput.Scan()
-			t := boutput.Text()
+			buff, _ := a.kb.ReadListener(a.pipeR)
 			var typeHolder TypeHolder
-			if err := json.Unmarshal([]byte(t), &typeHolder); err != nil {
+			if err := json.Unmarshal(buff, &typeHolder); err != nil {
 				errorCh <- err
 				break
 			}
 			switch typeHolder.Type {
 			case "chat":
 				var notification chat1.MsgNotification
-				if err := json.Unmarshal([]byte(t), &notification); err != nil {
+				if err := json.Unmarshal(buff, &notification); err != nil {
 					errorCh <- err
 					break
 				}
@@ -415,7 +326,7 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 				}
 			case "chat_conv":
 				var notification chat1.ConvNotification
-				if err := json.Unmarshal([]byte(t), &notification); err != nil {
+				if err := json.Unmarshal(buff, &notification); err != nil {
 					errorCh <- err
 					break
 				}
@@ -429,7 +340,7 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 				}
 			case "wallet":
 				var holder PaymentHolder
-				if err := json.Unmarshal([]byte(t), &holder); err != nil {
+				if err := json.Unmarshal(buff, &holder); err != nil {
 					errorCh <- err
 					break
 				}
@@ -457,53 +368,14 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 				panic("Listen: failed to auth, giving up")
 			}
 			attempts++
-			if _, err := a.auth(); err != nil {
-				log.Printf("Listen: failed to auth new: %s", err)
-				time.Sleep(pause)
-				continue
-			}
-			cmdElements := []string{"chat", "api-listen"}
-			if opts.Wallet {
-				cmdElements = append(cmdElements, "--wallet")
-			}
-			if opts.Convs {
-				cmdElements = append(cmdElements, "--convs")
-			}
-			p := a.runOpts.Command(cmdElements...)
-                        pipeR, pipeW, _ := os.Pipe()
-                        pipeRerr, pipeWerr, _ := os.Pipe()
-	                p.Stdout = pipeW
-                        p.Stderr = pipeWerr
-	                p.ExtraFiles = []*os.File{pipeW, pipeWerr}
-
-			//output, err := p.StdoutPipe()
-			//if err != nil {
-			//	log.Printf("Listen: failed to listen: %s", err)
-			//	time.Sleep(pause)
-			//	continue
-			//}
-			//stderr, err := p.StderrPipe()
-			//if err != nil {
-			//	log.Printf("Listen: failed to listen to stderr: %s", err)
-			//	time.Sleep(pause)
-			//	continue
-			//}
-			boutput := bufio.NewScanner(pipeR)
-			if err := p.Start(); err != nil {
+			if err := a.kb.StartChatApiListener(a.pipeW); err != nil {
 				log.Printf("Listen: failed to make listen scanner: %s", err)
 				time.Sleep(pause)
 				continue
 			}
 			attempts = 0
-			go readScanner(boutput)
+			go readScanner()
 			<-done
-			if err := p.Wait(); err != nil {
-				stderrBytes, rerr := ioutil.ReadAll(pipeRerr)
-				if rerr != nil {
-					stderrBytes = []byte("failed to get stderr")
-				}
-				log.Printf("Listen: failed to Wait for command: %s (```%s```)", err, stderrBytes)
-			}
 			time.Sleep(pause)
 		}
 	}()
@@ -541,14 +413,13 @@ func (a *API) Shutdown() error {
 	}
 
 	if a.runOpts.Oneshot != nil {
-		err := a.runOpts.Command("logout", "--force").Run()
-		if err != nil {
+		if err:= kbapi.Logout(a.kb.GetGlobalContext(), true); err != nil {
 			return err
 		}
 	}
 
 	if a.runOpts.StartService {
-		err := a.runOpts.Command("ctl", "stop", "--shutdown").Run()
+		err := kbapi.CtlStop(a.kb.GetGlobalContext(), true)
 		if err != nil {
 			return err
 		}

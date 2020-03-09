@@ -25,9 +25,7 @@ type ListUserMemberships struct {
 
 func (a *API) ListMembersOfTeam(teamName string) (res keybase1.TeamMembersDetails, err error) {
 	apiInput := fmt.Sprintf(`{"method": "list-team-memberships", "params": {"options": {"team": "%s"}}}`, teamName)
-	cmd := a.runOpts.Command("team", "api")
-	cmd.Stdin = strings.NewReader(apiInput)
-	bytes, err := cmd.CombinedOutput()
+	bytes, err := a.kb.SendTeamApi(apiInput)
 	if err != nil {
 		return res, APIError{err}
 	}
@@ -45,9 +43,7 @@ func (a *API) ListMembersOfTeam(teamName string) (res keybase1.TeamMembersDetail
 
 func (a *API) ListUserMemberships(username string) ([]keybase1.AnnotatedMemberInfo, error) {
 	apiInput := fmt.Sprintf(`{"method": "list-user-memberships", "params": {"options": {"username": "%s"}}}`, username)
-	cmd := a.runOpts.Command("team", "api")
-	cmd.Stdin = strings.NewReader(apiInput)
-	bytes, err := cmd.CombinedOutput()
+	bytes, err := a.kb.SendTeamApi(apiInput)
 	if err != nil {
 		return nil, APIError{err}
 	}
