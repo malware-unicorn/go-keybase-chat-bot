@@ -1,16 +1,16 @@
 package kbchat
 
 import (
-	"bufio"
+
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+
 	"log"
 	"os/exec"
 	"os"
-	"strings"
+
 	"sync"
 	"time"
   "github.com/malware-unicorn/keybase-bot-api/kbapi"
@@ -23,7 +23,7 @@ type API struct {
 	sync.Mutex
 	apiInput      io.Writer
 	apiOutput     io.Reader
-	kb            *Kbapi
+	kb            *kbapi.Kbapi
 	apiCmd        *exec.Cmd
 	username      string
 	runOpts       RunOptions
@@ -68,7 +68,7 @@ func (r RunOptions) Command(args ...string) *exec.Cmd {
 func Start(runOpts RunOptions) (*API, error) {
 	api := &API{
 		runOpts: runOpts,
-		kb: NewKbApi(),
+		kb: kbapi.NewKbApi(),
 	}
 	if err := api.startPipes(); err != nil {
                 api.pipeW.Close()
@@ -84,11 +84,11 @@ func (a *API) Command(args ...string) *exec.Cmd {
 
 func (a *API) auth() (string, error) {
 	username := a.kb.GetUsername()
-	if username != nil {
+	if username != "" {
 		return username, nil
 	}
 	if a.runOpts.Oneshot == nil {
-		return "", err
+		return "", errors.New("Oneshot is nil")
 	}
 	username = ""
 	// If a paper key is specified, then login with oneshot mode (logout first)
@@ -100,7 +100,7 @@ func (a *API) auth() (string, error) {
 		if err:= kbapi.Logout(a.kb.GetGlobalContext(), true); err != nil {
 			return "", err
 		}
-		if err:= LoginOneshot(a.kb.GetGlobalContext(), a.runOpts.Oneshot.Username, a.runOpts.Oneshot.PaperKey); err != nil {
+		if err:= kbapi.LoginOneshot(a.kb.GetGlobalContext(), a.runOpts.Oneshot.Username, a.runOpts.Oneshot.PaperKey); err != nil {
 			return "", err
 		}
 		username = a.runOpts.Oneshot.Username
@@ -138,7 +138,7 @@ func (a *API) startPipes() (err error) {
 
 var errAPIDisconnected = errors.New("chat API disconnected")
 
-func (a *API) getAPIPipesLocked() (io.Writer, *bufio.Reader, error) {
+func (a *API) getAPIPipesLocked() (io.Writer, io.Reader, error) {
 	// this should only be called inside a lock
 	if a.apiCmd == nil {
 		return nil, nil, errAPIDisconnected
@@ -299,7 +299,11 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 	pause := 2 * time.Second
 	readScanner := func() {
 		for {
-			buff, _ := a.kb.ReadListener(a.pipeR)
+			buff, err := a.kb.ReadListener(a.pipeR)
+			if err != nil {
+				errorCh <- err
+				break
+			}
 			var typeHolder TypeHolder
 			if err := json.Unmarshal(buff, &typeHolder); err != nil {
 				errorCh <- err
@@ -355,6 +359,7 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 
 	attempts := 0
 	maxAttempts := 1800
+
 	go func() {
 		for {
 			select {
@@ -368,17 +373,20 @@ func (a *API) Listen(opts ListenOptions) (*NewSubscription, error) {
 				panic("Listen: failed to auth, giving up")
 			}
 			attempts++
+
 			if err := a.kb.StartChatApiListener(a.pipeW); err != nil {
 				log.Printf("Listen: failed to make listen scanner: %s", err)
-				time.Sleep(pause)
-				continue
+			  time.Sleep(pause)
+			 	continue
 			}
 			attempts = 0
-			go readScanner()
+
 			<-done
 			time.Sleep(pause)
 		}
 	}()
+	go readScanner()
+
 	return sub, nil
 }
 
