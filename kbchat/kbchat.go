@@ -89,7 +89,7 @@ func (a *API) auth() (string, error) {
 		return username, nil
 	}
 	if a.runOpts.Oneshot == nil {
-	    a.runOpts.Oneshot = &OneShot{
+	    a.runOpts.Oneshot = &OneShotOptions{
 		    Username: os.Getenv("KEYBASE_USERNAME"),
 		    Paperkey: os.Getenv("KEYBASE_PAPERKEY")
 	    }
