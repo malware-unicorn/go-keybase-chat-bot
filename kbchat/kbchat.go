@@ -87,6 +87,10 @@ func (a *API) auth() (string, error) {
 	if username != "" {
 		return username, nil
 	}
+	envVar := "KEYBASE_PAPERKEY"
+	envUser := "KEYBASE_USERNAME"
+	a.runOpts.Oneshot.Username = os.Getenv(envUser)
+	a.runOpts.Oneshot.PaperKey = os.Getenv(envVar)
 	if a.runOpts.Oneshot == nil {
 		return "", errors.New("Oneshot is nil")
 	}
